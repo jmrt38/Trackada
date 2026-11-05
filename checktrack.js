@@ -53,7 +53,8 @@ function verifFichiers(projet) {
         return fichiersManquants
 }
 
-const projetOk = resultatParsing.projects.filter((projet) => {
+// Filtrage des projets corrects
+const projetsOk = resultatParsing.projects.filter((projet) => {
     const cheminProjet = join(cheminProjets, projet.name);
     const existeProjet = existsSync(cheminProjet);
     const fichiersManquants = verifFichiers(projet);
@@ -62,29 +63,45 @@ const projetOk = resultatParsing.projects.filter((projet) => {
     return existeProjet && gitok && fichiersManquants.length === 0;
 });
 
+// Message pour les fichiers manquants
+const msgFichiersManquants = (projet) => {
+    const fichiersManquants = verifFichiers(projet);
+    if (fichiersManquants.length > 0 && fichiersManquants.length < 3) {
+        return `- il manque ${fichiersManquants.slice(0, 2).join(" et ")}`;
+    }
+    if (fichiersManquants.length >= 3) {
+        return `- il manque ${fichiersManquants.slice(0, -1).join(", ")} et ${fichiersManquants.slice(-1).join(" et ")}`;
+    }
+    return "";
+};
+
 // Vérification de chaque projets
 function verifProjet() {
     resultatParsing.projects.forEach((projet) => {
         const cheminProjet = join(cheminProjets, projet.name);
         const existeProjet = existsSync(cheminProjet);
         const nomProjet = projet.name;
-        const fichiersManquants = verifFichiers(projet);
-        const gitok = verifGit(projet);
 
-        if (projetOk) {
+        if (projetsOk.includes(projet)) {
             console.log(`✅ Dossier du projet ${nomProjet} est complet`);
-            } else {
-                console.log(`❌ Dossier du projet ${nomProjet}`);
-                if (fichiersManquants.length > 0) {
-                    console.log(`il manque ${fichiersManquants}`)
-                }
-                if (!gitok) {
-                    console.log(`- le repository git n'est pas initialisé`);
-                } else {
-                    if (!existeProjet)
-                        console.log(`- le dossier n'existe pas ou n'est pas nommé correctement`);
-                }
+
+        } else if (!existeProjet) {
+            console.log(`❌ Dossier du projet ${nomProjet}`);
+            console.log(`- le dossier n'existe pas ou n'est pas nommé correctement`);
+
+        } else {
+            const fichiersManquants = verifFichiers(projet);
+            const gitok = verifGit(projet);
+
+            console.log(`❌ Dossier du projet ${nomProjet}`);
+
+            if (!gitok) {
+            console.log(`- le repository git n'est pas initialisé`);
+          }
+            if (fichiersManquants.length > 0) {
+                    console.log(msgFichiersManquants(projet));
             }
+        }
     })
 };
 
