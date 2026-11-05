@@ -35,7 +35,7 @@ function checkTrackJson() {
 
 // Verification dossier parent des projets
 function checkDossierParent() {
-    return existeProjets ? true : false;
+    return existeProjets;
 }
 
 // Vérification du dossier .git pour chaque projet
@@ -169,6 +169,13 @@ function main() {
 }
 
 // Utilisation de readline pour lancer l'exécution à la demande
-rl.question("Appuyez sur Entrée pour lancer la vérification des projets...", () => {
-    main();
+rl.question("Voulez-vous lancer la vérification des projets... (o/n) ", (reponse) => {
+    const choix = reponse.trim().toLowerCase();
+    
+    if (choix === 'o' || choix === 'oui') {
+        main();
+    } else {
+        console.log("Vérification annulée.");
+        rl.close();
+    }
 });
