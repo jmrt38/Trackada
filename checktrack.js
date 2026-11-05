@@ -2,39 +2,48 @@
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
-import readline from "readline"
+import readline from "readline";
 
 // variables
 const cheminJson = join(homedir(), "Dev", "ada-tech", "bloc1", "projets", "trackada", "track.json");
 const existeJson = existsSync(cheminJson);
+const cheminProjets = join(homedir(), "Dev", "ada-tech", "bloc1", "projets");
+const existeProjets = existsSync(cheminProjets);
 let resultatParsing;
+
 const rl = readline.createInterface({
-  input:  process.stdin,
-  output: process.stdout
-})
+    input: process.stdin,
+    output: process.stdout
+});
 
 // Vérification de l'existence du fichier track.json et parsing du contenu si le fichier existe
-if (existeJson) {
-    const contenuJson = readFileSync(cheminJson, "utf-8");
-    resultatParsing = JSON.parse(contenuJson);
-} else {
-    console.log("Le fichier n'existe pas à cet emplacement :", cheminJson);
+function checkTrackJson() {
+    if (existeJson) {
+        try {
+            const contenuJson = readFileSync(cheminJson, "utf-8");
+            resultatParsing = JSON.parse(contenuJson);
+            return resultatParsing;
+        } catch (erreur) {
+            console.error("Erreur lors du parsing du fichier JSON :", erreur);
+            return null;
+        }
+    } else {
+        console.log("Le fichier n'existe pas à cet emplacement :", cheminJson);
+        return null;
+    }
 }
 
 // Verification dossier parent des projets
-const cheminProjets = join(homedir(), "Dev", "ada-tech", "bloc1", "projets");
-const existeProjets = existsSync(cheminProjets);
-
-
-console.log(existeProjets ? "✅ dossier projets" : "❌ dossier projets introuvable")
-
+function checkDossierParent() {
+    return existeProjets ? true : false;
+}
 
 // Vérification du dossier .git pour chaque projet
 function verifGit(projet) {
-        const cheminProjet = join(cheminProjets, projet.name);
-        const cheminGit = join(cheminProjet, ".git");
-        const gitOk = existsSync(cheminGit);
-        return gitOk;
+    const cheminProjet = join(cheminProjets, projet.name);
+    const cheminGit = join(cheminProjet, ".git");
+    const gitOk = existsSync(cheminGit);
+    return gitOk;
 }
 
 // Vérification des fichiers requis pour chaque projet
@@ -43,25 +52,28 @@ function verifFichiers(projet) {
     const cheminProjet = join(cheminProjets, projet.name);
 
     projet.required.forEach((fichier) => {
-            const cheminFichier = join(cheminProjet, fichier);
-            const fichierOk = existsSync(cheminFichier);
+        const cheminFichier = join(cheminProjet, fichier);
+        const fichierOk = existsSync(cheminFichier);
 
-                if (!fichierOk) {
-                    fichiersManquants.push(fichier);
-                }
-        })
-        return fichiersManquants
+        if (!fichierOk) {
+            fichiersManquants.push(fichier);
+        }
+    });
+    return fichiersManquants;
 }
 
 // Filtrage des projets corrects
-const projetsOk = resultatParsing.projects.filter((projet) => {
-    const cheminProjet = join(cheminProjets, projet.name);
-    const existeProjet = existsSync(cheminProjet);
-    const fichiersManquants = verifFichiers(projet);
-    const gitok = verifGit(projet);
+let projetsOk = [];
+function filtrerProjetsOk() {
+    projetsOk = resultatParsing.projects.filter((projet) => {
+        const cheminProjet = join(cheminProjets, projet.name);
+        const existeProjet = existsSync(cheminProjet);
+        const fichiersManquants = verifFichiers(projet);
+        const gitok = verifGit(projet);
 
-    return existeProjet && gitok && fichiersManquants.length === 0;
-});
+        return existeProjet && gitok && fichiersManquants.length === 0;
+    });
+}
 
 // Message pour les fichiers manquants
 const msgFichiersManquants = (projet) => {
@@ -75,7 +87,7 @@ const msgFichiersManquants = (projet) => {
     return "";
 };
 
-// Vérification de chaque projets
+// Vérification de chaque projet
 function verifProjet() {
     resultatParsing.projects.forEach((projet) => {
         const cheminProjet = join(cheminProjets, projet.name);
@@ -84,11 +96,9 @@ function verifProjet() {
 
         if (projetsOk.includes(projet)) {
             console.log(`✅ Dossier du projet ${nomProjet} est complet`);
-
         } else if (!existeProjet) {
             console.log(`❌ Dossier du projet ${nomProjet}`);
             console.log(`- le dossier n'existe pas ou n'est pas nommé correctement`);
-
         } else {
             const fichiersManquants = verifFichiers(projet);
             const gitok = verifGit(projet);
@@ -96,25 +106,69 @@ function verifProjet() {
             console.log(`❌ Dossier du projet ${nomProjet}`);
 
             if (!gitok) {
-            console.log(`- le repository git n'est pas initialisé`);
-          }
+                console.log(`- le repository git n'est pas initialisé`);
+            }
             if (fichiersManquants.length > 0) {
-                    console.log(msgFichiersManquants(projet));
+                console.log(msgFichiersManquants(projet));
             }
         }
-    })
-};
+    });
+}
 
-// TODO : charger et parser track.json
+// Pourcentage de projets corrects
+function pourcentageProjetsOk() {
+    const totalProjets = resultatParsing.projects.length;
+    const nbProjetsOk = projetsOk.length;
+    const pourcentage = Math.round((nbProjetsOk / totalProjets) * 100);
 
-// TODO : construire le chemin vers ~/ada-tech/bloc1/projets
+    return pourcentage;
+}
 
-// TODO : vérifier que ce dossier existe et afficher le résultat
+// Affichage du pourcentage de projets corrects
+function afficherPourcentage() {
+    const totalProjets = resultatParsing.projects.length;
+    const nbProjetsOk = projetsOk.length;
+    const pourcentage = pourcentageProjetsOk();
 
-// TODO : pour chaque projet de la track,
-//        vérifier que le dossier existe au bon endroit
-//        vérifier que le repository git est initialisé
-//        vérifier que les fichiers requis sont présents
-//        afficher ✅ ou ❌ avec les erreurs dans l'ordre
+    if (nbProjetsOk === totalProjets) {
+        console.log(`✅ ${pourcentage}% des projets sont initialisés correctement ${nbProjetsOk}/${totalProjets}`);
+    } else {
+        console.log(`❌ ${pourcentage}% des projets sont initialisés correctement ${nbProjetsOk}/${totalProjets}`);
+    }
+}
 
-// TODO : calculer et afficher le pourcentage de projets corrects
+// Fonction principale orchestrant les vérifications
+function main() {
+    // 1. Vérifier le dossier parent
+    const dossierParentOk = checkDossierParent();
+    if (!dossierParentOk) {
+        console.log(`❌ Arrêt du programme : Le dossier parent des projets n'existe pas à cet emplacement : ${cheminProjets}`);
+        rl.close();
+        return;
+    }
+
+    // 2. Charger le JSON
+    const donneesJson = checkTrackJson();
+    if (!donneesJson) {
+        console.log("❌ Arrêt du programme : Impossible de charger ou de parser le fichier track.json.");
+        rl.close();
+        return;
+    }
+
+    // 3. Filtrer les projets corrects
+    filtrerProjetsOk();
+
+    // 4. Afficher les résultats
+    verifProjet();
+
+    // 5. Afficher le pourcentage
+    afficherPourcentage();
+
+    // Fermeture propre de l'interface readline à la fin du programme
+    rl.close();
+}
+
+// Utilisation de readline pour lancer l'exécution à la demande
+rl.question("Appuyez sur Entrée pour lancer la vérification des projets...", () => {
+    main();
+});
